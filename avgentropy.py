@@ -91,7 +91,7 @@ def AvgintervalPrinter(avgentropy):
 def PosPrinter(pos,avgentropy):
 	output=open('Pos'+str(pos)+'.dat','w')
 	for r in range(stdline): 
-		output.write('{}\n'.format(avgentropy[r][pos]))
+		output.write('{0}\n'.format(avgentropy[r][pos]))
 
 def mp_count(nprocs, resultdict):
 	def worker(vers, out_q):
