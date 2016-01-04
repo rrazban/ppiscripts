@@ -9,6 +9,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--directory', required=True, metavar='RUNs',  help='dir to look for file')
+    parser.add_argument('--delete', action='store_true')
     return parser.parse_args()
 args=parse_args()
 

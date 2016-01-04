@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-#determine failed jobs, make sure file 1 completes!
-#in parallel
+#determine failed jobs in parallel
+# make sure file 1 completes!
 
-import re,math
+import re,math,os,subprocess
 from multiprocessing import *
 from datetime import datetime
 import ppisettings  
@@ -58,6 +58,10 @@ if __name__=='__main__':
 	print 'complete: {0} ({1})'.format(sorted(complete),len(complete))
 	print 'incomplete: {0} ({1})'.format(sorted(incomplete),len(incomplete))
 	print 'inpresent: {0} ({1})'.format(sorted(inpresent),len(inpresent))
+	if ppisettings.args.delete:
+		for num in inpresent:
+			os.system("rm -r " + ppisettings.commonseq + num)	
+		#	subprocess.call(["rm -r ", ppisettings.commonseq, num])
 	end=str(datetime.now())
 	print 'start time: '+begin
 	print 'end time: '+end
