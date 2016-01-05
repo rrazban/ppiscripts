@@ -7,9 +7,10 @@ import os,sys,glob,re
 def parse_args():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--verbose', metavar='True', default='False')
     parser.add_argument('--directory', required=True, metavar='RUNs',  help='dir to look for file')
-    parser.add_argument('--delete', action='store_true')
+    parser.add_argument('--delete', metavar='True', default='False', help="delete inpresent directories")
+    parser.add_argument('--nprocs', type=int, default=1)
     return parser.parse_args()
 args=parse_args()
 

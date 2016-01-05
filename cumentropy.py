@@ -13,6 +13,7 @@ aalen = ppisettings.aalen
 stdline = ppisettings.stdline 
 mapaa = translation.mapaa
 aminoacids = translation.aminoacids
+nprocs=ppisettings.args.nprocs
 
 def initialize():
 	counter={}
@@ -157,7 +158,6 @@ def mp_gen(avgentropy,nprocs):
 
 if __name__=='__main__':
 	begin=str(datetime.now())
-	nprocs=8
 	upversion,incomplete,inpresent=ppijobstatus.mp_fail(ppisettings.dirs,nprocs)
 
 	avgentropy=mp_preentropy(upversion,nprocs)
