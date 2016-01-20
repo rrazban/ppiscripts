@@ -130,39 +130,12 @@ def PosPrinter(pos,avgentropy):
 		output.write('{0}\n'.format(avgentropy[r][pos]))
 
 
-
-def mp_gen(avgentropy,nprocs):
-	def worker(vers, out_q):
-		outdict={}
-		for pos in vers:
-			PosPrinter(pos,avgentropy)
-		out_q.put(outdict)
-	
-	out_q=Queue()
-	chunksize=int(math.ceil(len(range(aalen))/float(nprocs)))
-	procs=[]
-	
-	for i in range(nprocs):
-		p=Process(target=worker,args=(range(aalen)[chunksize*i:chunksize*(i+1)],out_q))
-		procs.append(p)
-		p.start()
-
-	resultdict={}
-	for i in range(nprocs):
-		resultdict.update(out_q.get())
-	for p in procs:
-		p.join()
-
-	return resultdict	
-
-
 if __name__=='__main__':
 	begin=str(datetime.now())
 	upversion,incomplete,inpresent=ppijobstatus.mp_fail(ppisettings.dirs,nprocs)
 
 	avgentropy=mp_preentropy(upversion,nprocs)
 	AvgintervalPrinter(avgentropy)
-	mp_gen(avgentropy,nprocs)
 	end=str(datetime.now())
 	print 'start time: '+begin
 	print 'end time: '+end
