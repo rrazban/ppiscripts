@@ -10,8 +10,11 @@ import ppijobstatus, ppisettings
 stdline = ppisettings.stdline
 nprocs = ppisettings.args.nprocs
 
+#correspond to P0int, P1int, ppi
+listi=[6,7,8]
+
+
 def Getaasgen(ver):
-	listi=[6,7,8]
 	dir=commonseq+ver
 	dat=commondat+ver+'.dat'
 	ophile=open(dir+'/'+dat,'r')
@@ -25,7 +28,6 @@ def Getaasgen(ver):
 	return result
 
 def CountnFreq(time,resultdict):
-	listi=[6,7,8]
 	result={}
 	for index in listi:
 		result[index]=0
@@ -60,7 +62,6 @@ def mp_preentropy(upversion, nprocs):
 def mp_count(stdline, nprocs, resultdict):
 	def worker(vers, out_q):
 		outdict={}
-		listi=[6,7,8]
 		for time in vers:
 			outdict[time]=CountnFreq(time,resultdict)
 		
