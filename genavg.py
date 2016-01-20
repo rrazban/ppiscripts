@@ -2,10 +2,8 @@
 
 #extract Pint (0,1) and ppi
 
-import os,sys,glob,re,math
-import numpy as np
+import math
 from multiprocessing import *
-import functools as ft
 from datetime import datetime
 import ppijobstatus, ppisettings 
 
@@ -34,7 +32,6 @@ def CountnFreq(time,resultdict):
 		for ver in upversion:
 			result[index]+=float(resultdict[ver][time][index])/float(len(upversion))
 	return result
-
 
 def mp_preentropy(upversion, nprocs):
 	def worker(vers, out_q):
@@ -94,12 +91,6 @@ def AvgintervalPrinter(avgentropy):
 		output2.write('{0}\n'.format(avgentropy[r][7]))
 		output3.write('{0}\n'.format(avgentropy[r][8]))
 
-
-
-
-def stupid(count,upver):
-	print upver
-	print count
 
 if __name__=='__main__':
 	begin=str(datetime.now())
