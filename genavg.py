@@ -3,6 +3,7 @@
 #extract Pint (0,1) and ppi
 
 import math
+import numpy as np
 from multiprocessing import *
 from datetime import datetime
 import ppijobstatus, ppisettings 
@@ -11,28 +12,26 @@ stdline = ppisettings.stdline
 nprocs = ppisettings.args.nprocs
 
 #correspond to P0int, P1int, ppi
-listi=[6,7,8]
+listi=[6, 7, 8]
 
 
 def Getaasgen(ver):
-	dir=commonseq+ver
-	dat=commondat+ver+'.dat'
-	ophile=open(dir+'/'+dat,'r')
+	dir = ppisettings.commonseq+ver
+	dat = ppisettings.commondat+ver+'.dat'
+	ophile = open(dir+'/'+dat,'r')
 	next(ophile)	#dont have to do awkward iterating
-	result={}
+	result = np.zeros((stdline, len(listi)), dtype = "float")
 	for l,line in enumerate(ophile):
-		result[l]={}
 		for index in listi:
-			split=line.split()
-			result[l][index]=split[index]
+			split = line.split()
+			result[l][index - 6] = split[index]
 	return result
 
 def CountnFreq(time,resultdict):
-	result={}
+	result = np.zeros((len(listi)), dtype = 'float')
 	for index in listi:
-		result[index]=0
 		for ver in upversion:
-			result[index]+=float(resultdict[ver][time][index])/float(len(upversion))
+			result[index - 6] += float(resultdict[ver][time][index - 6])/float(len(upversion))
 	return result
 
 def mp_preentropy(upversion, nprocs):
@@ -88,9 +87,9 @@ def AvgintervalPrinter(avgentropy):
 	output2=open('P1nat.dat','w')
 	output3=open('ppi.dat','w')
 	for r in range(stdline): 
-		output1.write('{0}\n'.format(avgentropy[r][6]))
-		output2.write('{0}\n'.format(avgentropy[r][7]))
-		output3.write('{0}\n'.format(avgentropy[r][8]))
+		output1.write('{0}\n'.format(avgentropy[r][0]))
+		output2.write('{0}\n'.format(avgentropy[r][1]))
+		output3.write('{0}\n'.format(avgentropy[r][2]))
 
 
 if __name__=='__main__':
