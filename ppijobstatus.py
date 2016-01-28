@@ -18,7 +18,7 @@ def mp_fail(multiple, nprocs):
 			prenumber=re.findall(r'\d+',single)
 			number=prenumber[len(prenumber)-1]
 			try:
-				ofile=open(single+'/'+ppisettings.commondat+number+'.dat','r')		
+				ofile=open(single, 'r')		
 				for nline,R in enumerate(ofile):
 					pass
 				if nline==ppisettings.stdline:
@@ -60,8 +60,7 @@ if __name__=='__main__':
 	print 'inpresent: {0} ({1})'.format(sorted(inpresent),len(inpresent))
 	if ppisettings.args.delete:
 		for num in inpresent:
-			os.system("rm -r " + ppisettings.commonseq + num)	
-		#	subprocess.call(["rm -r ", ppisettings.commonseq, num])
+			os.system("rm -r " + ppisettings.commonseq +num+ '.dat')	
 	end=str(datetime.now())
 	print 'start time: '+begin
 	print 'end time: '+end

@@ -26,9 +26,8 @@ def Getaas(ver):
 	shape=(stdline,aalen)
 	Bitp=np.empty(shape, dtype='string')
 
-	dir=ppisettings.commonseq+ver
-	dat=ppisettings.commondat+ver+'.dat'
-	ophile=open(dir+'/'+dat,'r')
+	dat=ppisettings.commonseq +ver+ '.dat'
+	ophile=open(dat, 'r')
 	next(ophile)	#dont have to do awkward iterating
 	for l,line in enumerate(ophile):
 		split=line.split()
@@ -83,14 +82,14 @@ def Entropy(freq):
 
 
 def AvgintervalPrinter(avgentropy):
-	output=open('avgS.dat','w')
+	output=open('avgS.txt','w')
 	output.write('#trange avgentropy\n')
 	for r in range(stdline): 
 		for pp in range(aalen):
 			output.write('{0}  {1}  {2}\n'.format(r,pp,avgentropy[r][pp]))
 
 def PosPrinter(pos,avgentropy):
-	output=open('Pos'+str(pos)+'.dat','w')
+	output=open('Pos'+str(pos)+'.txt','w')
 	for r in range(stdline): 
 		output.write('{0}\n'.format(avgentropy[r][pos]))
 

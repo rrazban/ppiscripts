@@ -16,9 +16,8 @@ listi=[6, 7, 8]
 
 
 def Getaasgen(ver):
-	dir = ppisettings.commonseq+ver
-	dat = ppisettings.commondat+ver+'.dat'
-	ophile = open(dir+'/'+dat,'r')
+	dat = ppisettings.commonseq +ver+ '.dat'
+	ophile = open(dat, 'r')
 	next(ophile)	#dont have to do awkward iterating
 	result = np.zeros((stdline, len(listi)), dtype = "float")
 	for l,line in enumerate(ophile):
@@ -36,10 +35,10 @@ def CountnFreq(time,resultdict):
 
 def mp_preentropy(upversion, nprocs):
 	def worker(vers, out_q):
-		outdict={}
+		outdict = {}
 		for ver in vers:
-			outdict[ver]=Getaasgen(ver)
-		
+			outdict[ver] = Getaasgen(ver)
+#put countnfreq here		
 		out_q.put(outdict)
 	
 	out_q=Queue()
@@ -83,9 +82,9 @@ def mp_count(stdline, nprocs, resultdict):
 	return resultdict	
 
 def AvgintervalPrinter(avgentropy):
-	output1=open('P0nat.dat','w')
-	output2=open('P1nat.dat','w')
-	output3=open('ppi.dat','w')
+	output1=open('P0nat.txt', 'w')
+	output2=open('P1nat.txt', 'w')
+	output3=open('ppi.txt', 'w')
 	for r in range(stdline): 
 		output1.write('{0}\n'.format(avgentropy[r][0]))
 		output2.write('{0}\n'.format(avgentropy[r][1]))

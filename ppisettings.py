@@ -9,7 +9,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', metavar='True', default='False')
     parser.add_argument('--directory', required=True, metavar='RUNs',  help='dir to look for file')
-    parser.add_argument('--delete', metavar='True', default='False', help="delete inpresent directories")
+    parser.add_argument('--delete', default=False, help="delete inpresent directories")
     parser.add_argument('--nprocs', type=int, default=1)
     return parser.parse_args()
 args=parse_args()
@@ -22,13 +22,11 @@ except:
 
 dirs=glob.glob('*seqv*')
 prenumber=re.findall(r'\d+',dirs[0])
-commonseq=dirs[0][:-len(prenumber[len(prenumber)-1])]
-commondat='basiclog-'+commonseq
+commonseq=dirs[0][:-(len(prenumber[len(prenumber)-1]) + len('.dat'))]
 
 #assume first file completes
-dir=commonseq+str(1)
-dat=commondat+str(1)+'.dat'
-ophile=open(dir+'/'+dat,'r')
+dat=commonseq +str(1)+ '.dat'
+ophile=open(dat,'r')
 tstep=[]
 for stdline,R in enumerate(ophile):
 	split=R.split()
