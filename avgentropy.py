@@ -2,131 +2,71 @@
 
 #calculate cumulative sequence entropy in parallel
 
-import math
 import numpy as np
 from multiprocessing import *
 from datetime import datetime
-import ppijobstatus, ppisettings, translation
+import ppijobstatus, ppisettings, translation, cumentropy
 
 aalen = ppisettings.aalen
 stdline = ppisettings.stdline
-mapaa = translation.mapaa
-nprocs = ppisettings.args.nprocs
 
-def initialize():
-	counter={}
-	for pos in range(aalen):
-		counter[pos]={}
-		counter[pos]={}
-		for key in mapaa:
-			counter[pos][mapaa[key]]=0
-	return counter
-
-def Getaas(ver):
-	shape=(stdline,aalen)
-	Bitp=np.empty(shape, dtype='string')
-
-	dat=ppisettings.commonseq +ver+ '.dat'
-	ophile=open(dat, 'r')
-	next(ophile)	#dont have to do awkward iterating
-	for l,line in enumerate(ophile):
-		split=line.split()
-		RNA=split[len(split)-1]
-		AAs=translation.rnatoaa(RNA)
-		for pp,AA in enumerate(AAs):
-			Bitp[l][pp]=AA
-	return Bitp
-
-def mp_preentropy(upversion, nprocs):
-	def worker(vers, out_q):
-		outdict={}
-		for ver in vers:
-			outdict[ver]={}
-			outdict[ver]=Getaas(ver)
-		
-		out_q.put(outdict)
-	
-	out_q=Queue()
-	chunksize=int(math.ceil(len(upversion)/float(nprocs)))
-	procs=[]
-	
-	for i in range(nprocs):
-		p=Process(target=worker,args=(upversion[chunksize*i:chunksize*(i+1)],out_q))
-		procs.append(p)
-		p.start()
-
-	resultdict={}
-	for i in range(nprocs):
-		resultdict.update(out_q.get())
-	for p in procs:
-		p.join()
-	return resultdict	
-
-def CountnFreq(time,resultdict,count):
-	for ver in upversion:
+def countnfreq(count,aamat,hydromat,versions):
+	for time in range(stdline):
 		for pos in range(aalen):
-			count[pos][resultdict[ver][time][pos]]+=1/float(len(upversion))
+			count[0][time][pos][aamat[time][pos]] += 1/float(len(versions))
+			count[1][time][pos][0] += hydromat[time][pos]/float(len(versions))
 	return count
 
-
-def Entropy(freq):
-	entropy={}
-	for pos in range(aalen):
-		entropy[pos]=0	
-		for aa in translation.aminoacids:
-			if freq[pos][aa]==0:
-				pass
-			else:
-				entropy[pos]+=-freq[pos][aa]*np.log(freq[pos][aa])
-	return entropy
-
-
-def AvgintervalPrinter(avgentropy):
-	output=open('avgS.txt','w')
-	output.write('#trange avgentropy\n')
-	for r in range(stdline): 
-		for pp in range(aalen):
-			output.write('{0}  {1}  {2}\n'.format(r,pp,avgentropy[r][pp]))
-
-def PosPrinter(pos,avgentropy):
-	output=open('Pos'+str(pos)+'.txt','w')
-	for r in range(stdline): 
-		output.write('{0}\n'.format(avgentropy[r][pos]))
-
-def mp_count(nprocs, resultdict):
-	def worker(vers, out_q):
-		outdict={}
-		for time in vers:
-			count=initialize()
-			freq=CountnFreq(time,resultdict,count)
-			outdict[time]=Entropy(freq)
-		
-		out_q.put(outdict)
+def mp_preentropy(versions,nprocs):
+	def worker(batch, out_q):
+		raw=np.zeros((2,stdline,aalen,len(translation.aminoacids)), dtype='float') #notice that only S requires len(translation.aminoacids) dimension
+		for ver in batch:
+			aamat,hydromat = cumentropy.readaas(ver)
+			raw = countnfreq(raw,aamat,hydromat,versions)
+		out_q.put(raw)
 	
 	out_q=Queue()
-	chunksize=int(math.ceil(len(range(stdline))/float(nprocs)))
+	chunksize=int(np.ceil(len(versions)/float(nprocs)))
 	procs=[]
-	
 	for i in range(nprocs):
-		p=Process(target=worker,args=(range(stdline)[chunksize*i:chunksize*(i+1)],out_q))
+		p=Process(target=worker,args=(versions[chunksize*i:chunksize*(i+1)],out_q))
 		procs.append(p)
 		p.start()
 
-	resultdict={}
+	preresult=[]
 	for i in range(nprocs):
-		resultdict.update(out_q.get())
+		preresult.append(out_q.get())
 	for p in procs:
 		p.join()
-	return resultdict	
+	for i in range(nprocs):
+		if i==0:
+			result = preresult[i]
+		else:						
+			result = np.add(result,preresult[i])
+	return result
 
+
+def entropy(freq):
+	entropy=np.zeros((stdline,2,aalen), dtype='float')	#to be compatible with cumentropy.printer
+	for time in range(stdline):
+		for pos in range(aalen):
+			for num in range(len(translation.aminoacids)):
+				if freq[0][time][pos][num]==0:
+					pass
+				else:
+					entropy[time][0][pos] += -freq[0][time][pos][num]*np.log(freq[0][time][pos][num])
+				entropy[time][1][pos] = freq[1][time][pos][0]
+	return entropy
 
 if __name__=='__main__':
 	begin=str(datetime.now())
-	upversion,incomplete,inpresent=ppijobstatus.mp_fail(ppisettings.dirs,nprocs)
-
-	resultdict=mp_preentropy(upversion,nprocs)
-	avgentropy=mp_count(nprocs,resultdict)
-	AvgintervalPrinter(avgentropy)
-	end=str(datetime.now())
+	print 'Running avgentropy'
 	print 'start time: '+begin
+
+	stati = ppijobstatus.mp_jobstatus(ppisettings.dirs,ppisettings.args.nprocs)
+	result = mp_preentropy(stati[0],ppisettings.args.nprocs)
+	finalresult = entropy(result)
+	cumentropy.writer(finalresult, outputs = ['avgS.txt', 'avghydro.txt'])
+
+	end=str(datetime.now())
 	print 'end time: '+end

@@ -1,8 +1,7 @@
 #!/usr/bin/python
 
-#calculate cumulative sequence entropy in parallel
+#calculate cumulative sequence entropy and hydrophobicity in parallel
 
-import math
 import numpy as np
 from multiprocessing import *
 from datetime import datetime
@@ -11,130 +10,96 @@ import ppijobstatus, ppisettings, translation
 
 aalen = ppisettings.aalen
 stdline = ppisettings.stdline 
-mapaa = translation.mapaa
-aminoacids = translation.aminoacids
-nprocs=ppisettings.args.nprocs
 
-def initialize():
-	counter={}
+def readaas(ver):
+	aamat=np.empty((stdline,aalen), dtype='float')
+	hydromat=np.empty((stdline,aalen), dtype='float')
+
+	dat = ppisettings.commonseq +ver+ '.dat'
+	with open(dat) as ophile:
+		next(ophile)	#dont have to do awkward iterating
+		for l,line in enumerate(ophile):
+			split = line.split()
+			RNA = split[len(split)-1]
+			AAs = translation.rnatoaa(RNA)
+			for pos,AA in enumerate(AAs):
+				aamat[l][pos] = translation.aatnummap[AA]
+				hydromat[l][pos] = translation.aathydromap[AA]
+	return aamat,hydromat
+
+def count(currcountmat,aamat,time):
 	for pos in range(aalen):
-		counter[pos]={}
-		for key in mapaa:
-			counter[pos][mapaa[key]]=0
-	return counter
+		currcountmat[pos][aamat[time][pos]] += 1
+	return currcountmat
 
-def Getaas(ver):
-	shape=(stdline,aalen)
-	Bitp=np.empty(shape, dtype='string')
+def frequency(currcountmat,time):
+	return currcountmat/float(time)
 
-	dat=ppisettings.commonseq +ver+ '.dat'
-	ophile=open(dat, 'r')
-	next(ophile)	#dont have to do awkward iterating
-	for l,line in enumerate(ophile):
-		split=line.split()
-		RNA=split[len(split)-1]
-		AAs=translation.rnatoaa(RNA)
-		for pp,AA in enumerate(AAs):
-			Bitp[l][pp]=AA
-	return Bitp
-
-def Count(count,Bitp,time):
+def entropy(freq):
+	entropy=np.zeros((aalen), dtype='float')
 	for pos in range(aalen):
-		count[pos][Bitp[time][pos]]+=1
-	return count
-
-def Frequency(count,time):
-	timez=float(time)+1
-	freq={}
-	for pos in range(aalen):
-		freq[pos]={}
-		for aas in aminoacids:
-			freq[pos][aas]=count[pos][aas]/float(timez)
-	return freq
-
-def Entropy(freq):
-	shape=(aalen)
-	entropy=np.array([0.0]*shape)
-	for pos in range(aalen):
-		for aa in aminoacids:
-			if freq[pos][aa]==0.0:
+		for num in range(len(translation.aminoacids)):
+			if freq[pos][num]==0:
 				pass
 			else:
-				entropy[pos]+=-freq[pos][aa]*np.log(freq[pos][aa])
+				entropy[pos] += -freq[pos][num]*np.log(freq[pos][num])
 	return entropy
 
-def mp_preentropy(upversion, nprocs):
-	def worker(vers, out_q, nproc):
-		shape=(aalen)
-		outdict={}
-		outdict[nproc]={}
-		for time in range(stdline):
-			outdict[nproc][time]=np.array(shape*[0.0])
-			
-		for ver in vers:
-			count=initialize()
-			Bitp=Getaas(ver)
-			for	time in range(stdline): 
-				count=Count(count,Bitp,time)	
-				freq1=Frequency(count,time)
-				outdict[nproc][time]=np.add(outdict[nproc][time],Entropy(freq1)/float(len(upversion)))
-	
-		out_q.put(outdict)
+def mp_cumentropy(versions, nprocs):
+	def worker(batch, out_q):
+		raw=np.zeros((stdline,2,aalen), dtype='float')
+		for ver in batch:
+			currcountmat=np.zeros((aalen,len(translation.aminoacids)), dtype='float')
+			aamat,hydromat = readaas(ver)
+			for	time in range(1,stdline): 
+				currcountmat = count(currcountmat,aamat,time)
+				freqmat = frequency(currcountmat,time)
+				raw[time][0] = np.add(raw[time][0], entropy(freqmat)/float(len(versions)))
+				raw[time][1] = np.add(raw[time][1], np.mean(hydromat[:time,:], axis=0)/float(len(versions)))
+		out_q.put(raw)
 	
 	out_q=Queue()
-	chunksize=int(math.ceil(len(upversion)/float(nprocs)))
+	chunksize=int(np.ceil(len(versions)/float(nprocs)))
 	procs=[]
-	
 	for i in range(nprocs):
 		shape=(aalen)
-		p=Process(target=worker,args=(upversion[chunksize*i:chunksize*(i+1)],out_q,i))
+		p=Process(target=worker,args=(versions[chunksize*i:chunksize*(i+1)],out_q))
 		procs.append(p)
 		p.start()
 
-	preresultdict={}
+	preresult=[]
 	for i in range(nprocs):
-		preresultdict.update(out_q.get())
+		preresult.append(out_q.get())
 	for p in procs:
 		p.join()
-	
-	resultdict={}
-	for time in range(stdline):
-		resultdict[time]=np.array(aalen*[0.0])
-		for i in range(nprocs):
-			resultdict[time]=np.add(resultdict[time],preresultdict[i][time])
-		
-	return resultdict	
+	for i in range(nprocs):
+		if i==0:
+			result = preresult[i]
+		else:						
+			result = np.add(result,preresult[i])
+	return result
 
-
-def intervalAverage(entropy):
-	avgentropy={}
-	for time in range(stdline):
-		avgentropy[time]={}		
-		for pos in range(aalen):
-			avgentropy[time][pos]=0
-			for ver in upversion:
-				avgentropy[time][pos]+=entropy[ver][time][pos]/float(len(upversion))
-	return avgentropy
-
-def AvgintervalPrinter(avgentropy):
-    output=open('cumS.txt', 'w')
-    output.write('#trange pos cumentropy\n')
-    for r in range(stdline): 
-        for pp in range(aalen):
-            output.write('{0}  {1}  {2}\n'.format(r,pp,avgentropy[r][pp]))
-
-def PosPrinter(pos,avgentropy):
-	output=open('Posc'+str(pos)+'.txt', 'w')
-	for r in range(stdline): 
-		output.write('{0}\n'.format(avgentropy[r][pos]))
+def writer(data, outputs):
+	for i,out in enumerate(outputs):
+		with open(out, 'w') as wout:
+			for l in range(1,stdline):
+				for pos in range(aalen):
+					wout.write('{0}  {1}  {2}\n'.format(l,pos,data[l][i][pos]))
+'''	avgoutputs =['avgcumS.txt', 'avghydro.txt']
+	for i,out in enumerate(avgoutputs):
+		with open(out, 'w') as wout:
+			for l in range(1,stdline):
+				wout.write('{0} {1}\n'.format(l,np.mean(data, axis=2)[l][i]))''' #have matlab do
 
 
 if __name__=='__main__':
 	begin=str(datetime.now())
-	upversion,incomplete,inpresent=ppijobstatus.mp_fail(ppisettings.dirs,nprocs)
-
-	avgentropy=mp_preentropy(upversion,nprocs)
-	AvgintervalPrinter(avgentropy)
-	end=str(datetime.now())
+	print "Running cumentropy.py"
 	print 'start time: '+begin
+
+	stati = ppijobstatus.mp_jobstatus(ppisettings.dirs,ppisettings.args.nprocs)
+	result = mp_cumentropy(stati[0],ppisettings.args.nprocs)
+	writer(result, outputs = ['cumS.txt', 'cumhydro.txt'])
+
+	end=str(datetime.now())
 	print 'end time: '+end

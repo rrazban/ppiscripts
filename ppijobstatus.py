@@ -3,64 +3,64 @@
 #determine failed jobs in parallel
 # make sure file 1 completes!
 
-import re,math,os,subprocess
+import re,math,os,itertools
+import numpy as np
 from multiprocessing import *
 from datetime import datetime
 import ppisettings  
 
-def mp_fail(multiple, nprocs):
-	def worker(multiple, out_q):
-		outdict={}
-		outdict['complete']=[]
-		outdict['incomplete']=[]
-		outdict['inpresent']=[]
-		for single in multiple:
-			prenumber=re.findall(r'\d+',single)
+stati = ['complete', 'incomplete', 'inpresent']
+
+def mp_jobstatus(files, nprocs):
+	def worker(batch, out_q):
+		raw=[[] for index in range(len(stati))]
+		for file in batch:
+			prenumber=re.findall(r'\d+',file)
 			number=prenumber[len(prenumber)-1]
 			try:
-				ofile=open(single, 'r')		
-				for nline,R in enumerate(ofile):
-					pass
+				with open(file) as ofile:
+					for nline,R in enumerate(ofile):
+						pass
 				if nline==ppisettings.stdline:
-					outdict['complete'].append(number)
+					raw[0].append(number)
 				else:			
-					outdict['incomplete'].append(number)
+					raw[1].append(number)
 			except:
-				outdict['inpresent'].append(number)
-		out_q.put(outdict)
+				raw[2].append(number)
+		out_q.put(raw)
 
 
 	out_q=Queue()
-	chunksize=int(math.ceil(len(multiple)/float(nprocs)))
+	chunksize=int(math.ceil(len(files)/float(nprocs)))
 	procs=[]
 	
 	for i in range(nprocs):
-		p=Process(target=worker,args=(multiple[chunksize*i:chunksize*(i+1)],out_q))
+		p=Process(target=worker,args=(files[chunksize*i:chunksize*(i+1)],out_q))
 		procs.append(p)
 		p.start()
 
-	resultdict=[]
+	preresult=[]
 	for i in range(nprocs):
-		resultdict.append(out_q.get())
+		preresult.append(out_q.get())
 	for p in procs:
 		p.join()
+	result=[[] for index in range(len(stati))]
+	for i in range(nprocs):
+		for index in range(len(stati)):
+			result[index].extend(preresult[i][index])
+	return result
 
-	complete=[y for nproc in resultdict for y in nproc['complete']]
-	incomplete=[y for nproc in resultdict for y in nproc['incomplete']]
-	inpresent=[y for nproc in resultdict for y in nproc['inpresent']]
-	return complete,incomplete,inpresent
-
+def printer(result):
+	for i,out in enumerate(stati):
+		print '{0}: {1} ({2})'.format(out,sorted(result[i]),len(result[i]))
 
 if __name__=='__main__':
 	begin=str(datetime.now())
-	nprocs=8
-	complete,incomplete,inpresent=mp_fail(ppisettings.dirs,nprocs)
-	print 'complete: {0} ({1})'.format(sorted(complete),len(complete))
-	print 'incomplete: {0} ({1})'.format(sorted(incomplete),len(incomplete))
-	print 'inpresent: {0} ({1})'.format(sorted(inpresent),len(inpresent))
-	if ppisettings.args.delete:
-		for num in inpresent:
-			os.system("rm -r " + ppisettings.commonseq +num+ '.dat')	
-	end=str(datetime.now())
+	print 'Running jobstatus.py'
 	print 'start time: '+begin
+
+	result = mp_jobstatus(ppisettings.dirs,ppisettings.args.nprocs)
+	printer(result)
+
+	end=str(datetime.now())
 	print 'end time: '+end

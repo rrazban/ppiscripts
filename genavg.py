@@ -2,41 +2,37 @@
 
 #extract Pint (0,1) and ppi
 
-import math
 import numpy as np
 from multiprocessing import *
 from datetime import datetime
 import ppijobstatus, ppisettings 
 
 stdline = ppisettings.stdline
-nprocs = ppisettings.args.nprocs
 
 #correspond to P0int, P1int, ppi
 list = [6, 7, 8]
-#currently hard-coded for diff of 1 between ea element 
-#list index associated with 0,1,2
 
 
-def mp_preentropy(upversion, nprocs):
-	def worker(vers, out_q):
+def mp_genavg(versions, nprocs):
+	def worker(batch, out_q):
 	#get and normalize value
-		out=np.zeros((stdline,len(list)), dtype='float')
-		for ver in vers:
+		raw=np.zeros((stdline,len(list)), dtype='float')
+		for ver in batch:
 			dat = ppisettings.commonseq +ver+ '.dat'
 			ophile = open(dat, 'r')
 			with open(dat) as ophile:
 				next(ophile)	#dont have to do awkward iterating
 				for l,line in enumerate(ophile):
 					split = line.split()
-					for index in list: 
-						out[l][index-min(list)] += float(split[index])/len(upversion)
-		out_q.put(out)
+					for i,index in enumerate(list): 
+						raw[l][i] += float(split[index])/len(versions)
+		out_q.put(raw)
 	
 	out_q = Queue()
-	chunksize = int(math.ceil(len(upversion)/float(nprocs)))
+	chunksize = int(np.ceil(len(versions)/float(nprocs)))
 	procs=[]
 	for i in range(nprocs):
-		p = Process(target = worker, args = (upversion[chunksize*i:chunksize*(i+1)], out_q))
+		p = Process(target = worker, args = (versions[chunksize*i:chunksize*(i+1)], out_q))
 		procs.append(p)
 		p.start()
 
@@ -52,22 +48,21 @@ def mp_preentropy(upversion, nprocs):
 			result = np.add(result, preresult[i])		
 	return result
 
-def printer(data):
+def writer(data):
 	outputs = ['P0nat.txt', 'P1nat.txt', 'ppi.txt']
-	for index,out in enumerate(outputs):
+	for i,out in enumerate(outputs):
 		with open(out, 'w') as wout:
 			for l in range(stdline): 
-				wout.write('{0}\n'.format(data[l][index]))
+				wout.write('{0}\n'.format(data[l][i]))
 
 if __name__=='__main__':
 	begin=str(datetime.now())
 	print 'Running genavg.py'
 	print 'start time: ' + begin
 
-	upversion,incomplete,inpresent = ppijobstatus.mp_fail(ppisettings.dirs,nprocs)
-
-	result = mp_preentropy(upversion,nprocs)
-	printer(result)
+	stati = ppijobstatus.mp_jobstatus(ppisettings.dirs,ppisettings.args.nprocs)
+	result = mp_genavg(stati[0],ppisettings.args.nprocs)
+	writer(result)
 
 	end=str(datetime.now())
 	print 'end time: '+end
