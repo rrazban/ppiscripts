@@ -1,27 +1,27 @@
 #!/usr/bin/python
 
-#calculate cumulative sequence entropy in parallel
-
+#calculate average sequence entropy and hydrophobicity in parallel
 import numpy as np
 from multiprocessing import *
 from datetime import datetime
-import ppijobstatus, ppisettings, translation, cumentropy
+import settings,jobstatus,maps,cumcalcs
 
-aalen = ppisettings.aalen
-stdline = ppisettings.stdline
+seqlen = settings.STDseqlen
+timelen = settings.STDtimelen
 
 def countnfreq(count,aamat,hydromat,versions):
-	for time in range(stdline):
-		for pos in range(aalen):
+	for time in range(timelen):
+		for pos in range(seqlen):
 			count[0][time][pos][aamat[time][pos]] += 1/float(len(versions))
 			count[1][time][pos][0] += hydromat[time][pos]/float(len(versions))
 	return count
 
 def mp_preentropy(versions,nprocs):
+	nprocs=min(nprocs,32)		 #roughly optimized for 105 jobs, printout 50, mem-per-cpu 100
 	def worker(batch, out_q):
-		raw=np.zeros((2,stdline,aalen,len(translation.aminoacids)), dtype='float') #notice that only S requires len(translation.aminoacids) dimension
+		raw=np.zeros((2,timelen,seqlen,len(maps.aminoacids)), dtype='float') #notice that only S requires len(maps.aminoacids) dimension
 		for ver in batch:
-			aamat,hydromat = cumentropy.readaas(ver)
+			aamat,hydromat = cumcalcs.readseq(ver)
 			raw = countnfreq(raw,aamat,hydromat,versions)
 		out_q.put(raw)
 	
@@ -47,10 +47,10 @@ def mp_preentropy(versions,nprocs):
 
 
 def entropy(freq):
-	entropy=np.zeros((stdline,2,aalen), dtype='float')	#to be compatible with cumentropy.printer
-	for time in range(stdline):
-		for pos in range(aalen):
-			for num in range(len(translation.aminoacids)):
+	entropy=np.zeros((timelen,2,seqlen), dtype='float')	#shape chosen to be compatible with cumcalcs.printer
+	for time in range(timelen):
+		for pos in range(seqlen):
+			for num in range(len(maps.aminoacids)):
 				if freq[0][time][pos][num]==0:
 					pass
 				else:
@@ -63,10 +63,10 @@ if __name__=='__main__':
 	print 'Running avgentropy'
 	print 'start time: '+begin
 
-	stati = ppijobstatus.mp_jobstatus(ppisettings.dirs,ppisettings.args.nprocs)
-	result = mp_preentropy(stati[0],ppisettings.args.nprocs)
+	stati = jobstatus.mp_jobstatus(settings.STDdirs,settings.args.nproc)
+	result = mp_preentropy(stati[0],settings.args.nproc)
 	finalresult = entropy(result)
-	cumentropy.writer(finalresult, outputs = ['avgS.txt', 'avghydro.txt'])
+	cumcalcs.writer(finalresult, outputs = ['avgS.txt', 'avghydro.txt'])
 
 	end=str(datetime.now())
 	print 'end time: '+end

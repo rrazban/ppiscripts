@@ -7,21 +7,22 @@ import re,math,os,itertools
 import numpy as np
 from multiprocessing import *
 from datetime import datetime
-import ppisettings  
+import settings  
 
 stati = ['complete', 'incomplete', 'inpresent']
 
 def mp_jobstatus(files, nprocs):
+	nprocs=min(nprocs,2)		 #roughly optimized for 105 jobs, printout 50, mem-per-cpu 100
 	def worker(batch, out_q):
 		raw=[[] for index in range(len(stati))]
 		for file in batch:
-			prenumber=re.findall(r'\d+',file)
-			number=prenumber[len(prenumber)-1]
+			prenumber = re.findall(r'\d+',file)
+			number = prenumber[len(prenumber)-1]
 			try:
 				with open(file) as ofile:
-					for nline,R in enumerate(ofile):
+					for nline,line in enumerate(ofile):
 						pass
-				if nline==ppisettings.stdline:
+				if nline==settings.STDtimelen:
 					raw[0].append(number)
 				else:			
 					raw[1].append(number)
@@ -29,13 +30,11 @@ def mp_jobstatus(files, nprocs):
 				raw[2].append(number)
 		out_q.put(raw)
 
-
 	out_q=Queue()
-	chunksize=int(math.ceil(len(files)/float(nprocs)))
+	chunksize = int(math.ceil(len(files)/float(nprocs)))
 	procs=[]
-	
 	for i in range(nprocs):
-		p=Process(target=worker,args=(files[chunksize*i:chunksize*(i+1)],out_q))
+		p=Process(target=worker, args=(files[chunksize*i:chunksize*(i+1)],out_q))
 		procs.append(p)
 		p.start()
 
@@ -59,7 +58,7 @@ if __name__=='__main__':
 	print 'Running jobstatus.py'
 	print 'start time: '+begin
 
-	result = mp_jobstatus(ppisettings.dirs,ppisettings.args.nprocs)
+	result = mp_jobstatus(settings.STDdirs,settings.args.nproc)
 	printer(result)
 
 	end=str(datetime.now())

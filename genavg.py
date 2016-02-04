@@ -5,20 +5,21 @@
 import numpy as np
 from multiprocessing import *
 from datetime import datetime
-import ppijobstatus, ppisettings 
+import jobstatus, settings 
 
-stdline = ppisettings.stdline
+timelen = settings.STDtimelen
 
 #correspond to P0int, P1int, ppi
 list = [6, 7, 8]
 
 
 def mp_genavg(versions, nprocs):
+	nprocs=min(nprocs,4)		#roughly optimized for 105 jobs, printout 50, mem-per-cpu 100
 	def worker(batch, out_q):
 	#get and normalize value
-		raw=np.zeros((stdline,len(list)), dtype='float')
+		raw=np.zeros((timelen,len(list)), dtype='float')
 		for ver in batch:
-			dat = ppisettings.commonseq +ver+ '.dat'
+			dat = settings.STDfile +ver+ '.dat'
 			ophile = open(dat, 'r')
 			with open(dat) as ophile:
 				next(ophile)	#dont have to do awkward iterating
@@ -52,7 +53,7 @@ def writer(data):
 	outputs = ['P0nat.txt', 'P1nat.txt', 'ppi.txt']
 	for i,out in enumerate(outputs):
 		with open(out, 'w') as wout:
-			for l in range(stdline): 
+			for l in range(timelen): 
 				wout.write('{0}\n'.format(data[l][i]))
 
 if __name__=='__main__':
@@ -60,8 +61,8 @@ if __name__=='__main__':
 	print 'Running genavg.py'
 	print 'start time: ' + begin
 
-	stati = ppijobstatus.mp_jobstatus(ppisettings.dirs,ppisettings.args.nprocs)
-	result = mp_genavg(stati[0],ppisettings.args.nprocs)
+	stati = jobstatus.mp_jobstatus(settings.STDdirs,settings.args.nproc)
+	result = mp_genavg(stati[0],settings.args.nproc)
 	writer(result)
 
 	end=str(datetime.now())
