@@ -3,6 +3,7 @@
 #calculate cumulative sequence entropy and hydrophobicity in parallel
 
 import numpy as np
+import gzip, random
 from multiprocessing import *
 from datetime import datetime
 import settings, jobstatus, maps
@@ -14,9 +15,8 @@ def readseq(ver):
 	aamat=np.empty((timelen,seqlen), dtype='float')
 	hydromat=np.empty((timelen,seqlen), dtype='float')
 
-	dat = settings.STDfile +ver+ '.dat'
+	dat = settings.STDfile +str(ver)+ '.dat'
 	with open(dat) as ophile:
-		next(ophile)	#remove for new jobs
 		for l,line in enumerate(ophile):
 			split = line.split()
 			RNA = split[len(split)-1]
@@ -97,6 +97,8 @@ if __name__=='__main__':
 	print 'start time: '+begin
 
 	stati = jobstatus.mp_jobstatus(settings.STDdirs,settings.args.nproc)
+#	stati[0] = random.sample(stati[0], 100)
+#	print stati[0]
 	result = mp_cumentropy(stati[0],settings.args.nproc)
 	writer(result, outputs = ['cumS.txt', 'cumhydro.txt'])
 
